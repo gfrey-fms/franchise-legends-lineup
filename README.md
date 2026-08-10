@@ -2,6 +2,8 @@
 
 CS 1.6–themed multi-year dynasty roster & contract planner with live Fantrax data.
 
+**Repo:** https://github.com/gfrey-fms/franchise-legends-lineup
+
 ## Features
 
 - Login gate (shared password)
@@ -11,26 +13,28 @@ CS 1.6–themed multi-year dynasty roster & contract planner with live Fantrax d
 - Contract tools: extend 1/R2, franchise tag (F), freeze, R1→R2
 - Constitution-aligned rules ($260 keeper / $360 in-season, inflation, MiLB R = $0)
 
-## Use locally
+## Quick start
 
-Open `index.html` in a browser.
-
-Default password: `legends` (change `APP_PASSWORD` in the script before sharing).
+1. Open `index.html` in a browser (or deploy below).
+2. Password: `legends` (change `APP_PASSWORD` in the JS before sharing).
+3. Paste your Fantrax league ID (e.g. `0qqrp8mwmgppoixe`).
+4. Pick your team → Open Dashboard.
 
 ## Deploy (free)
 
-**Cloudflare Pages** recommended — unlimited bandwidth, free SSL:
+### Cloudflare Pages (recommended)
+1. [Cloudflare Pages](https://pages.cloudflare.com/) → Create project
+2. Connect this GitHub repo
+3. Build command: *(leave empty)* · Output directory: `/`
+4. Deploy — free SSL + unlimited bandwidth
 
-1. Cloudflare → Pages → Create project
-2. Upload this repo or connect GitHub
-3. Deploy
-
-GitHub Pages also works (Settings → Pages → Deploy from branch).
-
-## Fantrax
-
-Uses public Fantrax endpoints (`getTeamRosters`, `getLeagueInfo`, `getPlayerIds`). No API key required. League ID is entered at runtime.
+### GitHub Pages
+Settings → Pages → Source: Deploy from branch `main` → Save
 
 ## Stack
 
-Single static HTML + [cs16.css](https://cs16.samke.me/) — no build step, no backend.
+Static HTML/CSS/JS + [cs16.css](https://cs16.samke.me/). No build step, no backend. Fantrax public API (CORS enabled).
+
+## Note on app files
+
+If `app.css` / `app.js` are missing from this repo, use the single-file build `lineup_tracker.html` from the project artifacts (rename to `index.html` and upload). The single-file version is self-contained.
