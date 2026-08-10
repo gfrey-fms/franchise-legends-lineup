@@ -5,9 +5,119 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Franchise Legends — Lineup Planner</title>
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/ekmas/cs16.css@main/css/cs16.min.css">
-<!-- See artifacts for full file; loading via alternate method -->
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
-<p>Loading full app… If you see this, the full index is being updated.</p>
+<!-- LOGIN -->
+<div id="loginScreen" class="screen">
+  <div class="panel-box">
+    <h1>Franchise Legends</h1>
+    <div class="sub">Lineup Planner · Restricted Access</div>
+    <div class="field">
+      <label for="passwordInput">Password</label>
+      <input type="password" id="passwordInput" autocomplete="current-password" placeholder="Enter league password">
+    </div>
+    <div class="btn-row">
+      <button type="button" class="cs-btn" id="loginBtn">Login</button>
+    </div>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div id="setupScreen" class="screen hidden">
+  <div class="panel-box">
+    <h1>Connect League</h1>
+    <div class="sub">Paste your Fantrax league ID, then pick your team.</div>
+    <div class="field">
+      <label for="leagueIdInput">Fantrax League ID</label>
+      <input type="text" id="leagueIdInput" placeholder="e.g. 0qqrp8mwmgppoixe" spellcheck="false">
+    </div>
+    <div class="btn-row">
+      <button type="button" class="cs-btn" id="loadLeagueBtn">Load League</button>
+    </div>
+    <div class="field hidden" id="teamField">
+      <label for="teamSelect">Your Team</label>
+      <select id="teamSelect"></select>
+    </div>
+    <div class="btn-row hidden" id="enterRow">
+      <button type="button" class="cs-btn" id="enterDashBtn">Open Dashboard</button>
+      <button type="button" class="cs-btn" id="logoutBtn">Logout</button>
+    </div>
+    <div class="error-msg" id="setupError"></div>
+    <div class="status-msg" id="setupStatus"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+  <div class="header">
+    <div>
+      <h1 id="teamTitle">Team</h1>
+      <div class="sub" id="leagueSub">Franchise Legends</div>
+    </div>
+    <div class="header-right">
+      <button type="button" class="cs-btn" id="changeTeamBtn" title="Change league or team">Change Team</button>
+      <button type="button" class="cs-btn" id="resetContractsBtn" title="Clear contract selections">Reset Contracts</button>
+      <div class="salary-box">
+        <div class="amount" id="salaryAmount">$0 / $0</div>
+        <div class="cap" id="capSpace">Cap Space: $0</div>
+      </div>
+    </div>
+  </div>
+  <div class="year-tabs" id="yearTabs"></div>
+  <div class="hint-bar">
+    <strong>Drag</strong> players to eligible slots. <strong>All can play UT</strong>.
+    On current year: extend <strong>1</strong> / <strong>R2</strong>, mark <strong>R1→R2</strong>, or <strong>Freeze</strong>.
+  </div>
+  <div class="rules-bar">
+    <strong>Rules:</strong>
+    Offseason/keeper <strong>$260</strong> · in-season <strong>$360</strong>.
+    Extend “1” up to 4 yrs (+$3/yr) or 5 yrs F (+$1/yr). One F benefit.
+    R1→R2 manual. R2 must extend or release. <strong>R1/R2 no inflation</strong>.
+    Unpromoted MiLB R = <strong>$0</strong> vs $260. Freeze = no advance/inflation.
+  </div>
+  <div class="field-container">
+    <div class="diamond-area">
+      <div class="diamond">
+        <div class="dirt"></div>
+        <div class="slot slot-of1" data-slot="OF_0" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
+        <div class="slot slot-of2" data-slot="OF_1" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
+        <div class="slot slot-of3" data-slot="OF_2" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
+        <div class="slot slot-ss" data-slot="SS" data-pos="SS" data-status="ACTIVE"><div class="pos-tag">SS</div></div>
+        <div class="slot slot-2b" data-slot="2B" data-pos="2B" data-status="ACTIVE"><div class="pos-tag">2B</div></div>
+        <div class="slot slot-3b" data-slot="3B" data-pos="3B" data-status="ACTIVE"><div class="pos-tag">3B</div></div>
+        <div class="slot slot-1b" data-slot="1B" data-pos="1B" data-status="ACTIVE"><div class="pos-tag">1B</div></div>
+        <div class="slot slot-c" data-slot="C" data-pos="C" data-status="ACTIVE"><div class="pos-tag">C</div></div>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="panel"><h3>Starting Pitchers <span>4</span></h3><div class="pitcher-grid" id="spGrid"></div></div>
+      <div class="panel"><h3>Relief Pitchers <span>3</span></h3><div class="pitcher-grid" id="rpGrid"></div></div>
+      <div class="panel"><h3>Pitcher (Flex) <span>2</span></h3><div class="pitcher-grid" id="pGrid"></div></div>
+      <div class="panel"><h3>Utility <span>2</span></h3><div class="ut-grid" id="utGrid"></div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Reserve / Bench <span class="count" id="benchCount">0 / 7</span></h2>
+    <div class="bench-grid drop-zone" id="benchGrid" data-status="RESERVE" data-pos="BENCH"></div>
+  </div>
+  <div class="section">
+    <h2>Injured Reserve <span class="count" id="irCount">0</span></h2>
+    <div class="bench-grid drop-zone" id="irGrid" data-status="INJURED_RESERVE" data-pos="IR"></div>
+  </div>
+  <div class="section">
+    <h2>Minors <span class="count" id="minorsCount">0</span></h2>
+    <div class="bench-grid drop-zone" id="minorsGrid" data-status="MINORS" data-pos="MINORS"></div>
+  </div>
+  <div class="section" id="expiredSection" style="display:none">
+    <h2>Expired / Released <span class="count" id="expiredCount">0</span></h2>
+    <div class="bench-grid" id="expiredGrid"></div>
+  </div>
+  <div class="footer">Franchise Legends · Constitution-aligned planner · Fantrax live data</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
 </body>
 </html>
