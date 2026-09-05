@@ -6,6 +6,7 @@
 <title>Franchise Legends — Lineup Planner</title>
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/ekmas/cs16.css@main/css/cs16.min.css">
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="rankings.css">
 </head>
 <body>
 <!-- LOGIN -->
@@ -66,42 +67,32 @@
     <button type="button" class="cs-btn year-tab active" id="navLeague">League</button>
     <button type="button" class="cs-btn year-tab" id="navLineup">Lineup</button>
   </div>
-  <div class="hint-bar" id="prHint">
-    Loading live Fantrax standings and weekly matchup scores…
-  </div>
+  <div class="hint-bar" id="prHint">Loading live Fantrax standings and weekly matchup scores…</div>
   <div class="pr-meta" id="prMeta"></div>
-
   <div class="section">
     <h2>Power Rankings <span class="count" id="prWeekLabel"></span></h2>
     <div class="pr-table-wrap">
       <table class="pr-table" id="prTable">
         <thead>
           <tr>
-            <th>Rk</th>
-            <th>Team</th>
-            <th>Div</th>
-            <th class="num">Recent 2-Wk</th>
-            <th class="num">Season Avg</th>
-            <th class="num">Win%</th>
-            <th class="num">W-L-T</th>
-            <th class="num">Power</th>
-            <th>Trend</th>
-            <th class="num">Recent PA</th>
-            <th class="num">Gms / Wk</th>
+            <th>Rk</th><th>Team</th><th>Div</th>
+            <th class="num">Recent 2-Wk</th><th class="num">Season Avg</th>
+            <th class="num">Win%</th><th class="num">W-L-T</th>
+            <th class="num">Power</th><th>Trend</th>
+            <th class="num">Recent PA</th><th class="num">Gms / Wk</th>
           </tr>
         </thead>
         <tbody id="prBody"></tbody>
       </table>
     </div>
   </div>
-
   <div class="section">
     <h2>Playoff Picture <span class="count">12 teams · MLB divisions</span></h2>
     <div class="playoff-grid">
       <div class="panel">
         <h3>American League</h3>
         <div class="pr-table-wrap" style="border:none;margin:0">
-          <table class="pr-table" id="alTable">
+          <table class="pr-table">
             <thead><tr><th>Seed</th><th>Team</th><th>Div</th><th class="num">W</th><th class="num">L</th><th class="num">Win%</th><th>Berth</th></tr></thead>
             <tbody id="alBody"></tbody>
           </table>
@@ -110,7 +101,7 @@
       <div class="panel">
         <h3>National League</h3>
         <div class="pr-table-wrap" style="border:none;margin:0">
-          <table class="pr-table" id="nlTable">
+          <table class="pr-table">
             <thead><tr><th>Seed</th><th>Team</th><th>Div</th><th class="num">W</th><th class="num">L</th><th class="num">Win%</th><th>Berth</th></tr></thead>
             <tbody id="nlBody"></tbody>
           </table>
@@ -118,18 +109,13 @@
       </div>
     </div>
   </div>
-
   <div class="section">
     <h2>Division Standings</h2>
     <div class="div-grid" id="divGrid"></div>
   </div>
-
   <div class="rules-bar">
-    <strong>Method (matches the league workbook):</strong>
-    Power = 50% last-2-weeks PF + 30% season weekly PF average + 20% win%.
-    Each component is min–max normalized 0–100 across all 30 teams.
-    Weekly PF is that team’s period total. Weekly PA is the <em>average</em> of unique opponents’ period totals that week — 1, 2, 3, or 4 games, no assumed matchup count.
-    Playoffs: 3 division winners + 3 wild cards per league (12 teams). Regular season only.
+    <strong>Method:</strong> 50% last-2-weeks PF + 30% season weekly PF avg + 20% win%.
+    Weekly PA averages unique opponents that week (1–4 games). 12-team playoffs, regular season only.
   </div>
   <div class="footer">Franchise Legends · Live Fantrax power rankings</div>
 </div>
@@ -143,8 +129,8 @@
     </div>
     <div class="header-right">
       <button type="button" class="cs-btn" id="toLeagueBtn">League</button>
-      <button type="button" class="cs-btn" id="changeTeamBtn" title="Change league or team">Change Team</button>
-      <button type="button" class="cs-btn" id="resetContractsBtn" title="Clear all extension, R1→R2, and freeze choices">Reset Contracts</button>
+      <button type="button" class="cs-btn" id="changeTeamBtn">Change Team</button>
+      <button type="button" class="cs-btn" id="resetContractsBtn">Reset Contracts</button>
       <div class="salary-box">
         <div class="amount" id="salaryAmount">$0 / $0</div>
         <div class="cap" id="capSpace">Cap Space: $0</div>
@@ -152,16 +138,7 @@
     </div>
   </div>
   <div class="year-tabs" id="yearTabs"></div>
-  <div class="hint-bar">
-    <strong>Drag</strong> players to eligible slots. <strong>All can play UT</strong>.
-    On <strong>2026</strong>: extend <strong>1</strong> / <strong>R2</strong>, mark <strong>R1→R2</strong>, or <strong>Freeze</strong> a contract.
-  </div>
-  <div class="rules-bar">
-    <strong>Rules (constitution):</strong>
-    Offseason/keeper budget <strong>$260</strong> · in-season <strong>$360</strong>.
-    Extend “1” up to 4 yrs (+$3/yr) or 5 yrs with F (+$1/yr). One F benefit per team.
-    R1→R2 is an <strong>offseason</strong> change (manual mark): same salary, leaves Minors, carries over.
-  </div>
+  <div class="hint-bar"><strong>Drag</strong> players to eligible slots. All can play UT.</div>
   <div class="field-container">
     <div class="diamond-area">
       <div class="diamond">
@@ -183,26 +160,14 @@
       <div class="panel"><h3>Utility <span>2</span></h3><div class="ut-grid" id="utGrid"></div></div>
     </div>
   </div>
-  <div class="section">
-    <h2>Reserve / Bench <span class="count" id="benchCount">0 / 7</span></h2>
-    <div class="bench-grid drop-zone" id="benchGrid" data-status="RESERVE" data-pos="BENCH"></div>
-  </div>
-  <div class="section">
-    <h2>Injured Reserve <span class="count" id="irCount">0</span></h2>
-    <div class="bench-grid drop-zone" id="irGrid" data-status="INJURED_RESERVE" data-pos="IR"></div>
-  </div>
-  <div class="section">
-    <h2>Minors <span class="count" id="minorsCount">0</span></h2>
-    <div class="bench-grid drop-zone" id="minorsGrid" data-status="MINORS" data-pos="MINORS"></div>
-  </div>
-  <div class="section" id="expiredSection" style="display:none">
-    <h2>Expired / Released <span class="count" id="expiredCount">0</span></h2>
-    <div class="bench-grid" id="expiredGrid"></div>
-  </div>
-  <div class="footer">Franchise Legends · Cincinnati Reds · Constitution-aligned planner</div>
+  <div class="section"><h2>Reserve / Bench <span class="count" id="benchCount">0 / 7</span></h2><div class="bench-grid drop-zone" id="benchGrid" data-status="RESERVE" data-pos="BENCH"></div></div>
+  <div class="section"><h2>Injured Reserve <span class="count" id="irCount">0</span></h2><div class="bench-grid drop-zone" id="irGrid" data-status="INJURED_RESERVE" data-pos="IR"></div></div>
+  <div class="section"><h2>Minors <span class="count" id="minorsCount">0</span></h2><div class="bench-grid drop-zone" id="minorsGrid" data-status="MINORS" data-pos="MINORS"></div></div>
+  <div class="section" id="expiredSection" style="display:none"><h2>Expired / Released <span class="count" id="expiredCount">0</span></h2><div class="bench-grid" id="expiredGrid"></div></div>
+  <div class="footer">Franchise Legends · Constitution-aligned planner</div>
   <div class="toast" id="toast"></div>
 </div>
-<div class="toast" id="toast"></div>
 <script src="app.js"></script>
+<script src="rankings.js"></script>
 </body>
 </html>
