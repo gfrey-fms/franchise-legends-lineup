@@ -3,6 +3,7 @@ FX.standings = (id) => "https://www.fantrax.com/fxea/general/getStandings?league
 FX.matchups = (id, period) => "https://www.fantrax.com/fxea/general/getMatchupScores?leagueId=" + encodeURIComponent(id) + (period ? ("&period=" + period) : "");
 const RANK_WEIGHTS = { recent: 0.5, season: 0.3, win: 0.2 };
 const PLAYOFF_TEAMS_PER_LEAGUE = 6;
+const HUNT_CAP = 6;
 let leagueInfo = null;
 let rankingData = null;
 
@@ -68,6 +69,16 @@ function seedSort(a, b) {
   if (b.seasonAvg !== a.seasonAvg) return b.seasonAvg - a.seasonAvg;
   return (b.pfTotal || 0) - (a.pfTotal || 0);
 }
+function weekIsComplete(n, week, periodMeta, now) {
+  const scores = Object.values((week && week.pf) || {});
+  if (scores.some(s => Number(s) > 0)) return true;
+  if (periodMeta && periodMeta.endDate && new Date(periodMeta.endDate).getTime() < now) return true;
+  return false;
+}
+function stillAlive(team, cutoffWins, leaderWins) {
+  const maxW = team.w + (team.remaining || 0);
+  return maxW >= cutoffWins || maxW >= (leaderWins || 0);
+}
 function leaguePicture(teams) {
   const byDiv = {};
   teams.forEach(t => { (byDiv[t.division] ||= []).push(t); });
@@ -82,9 +93,26 @@ function leaguePicture(teams) {
   rest.sort(seedSort);
   const wcCount = Math.max(0, PLAYOFF_TEAMS_PER_LEAGUE - winners.length);
   const wc = rest.slice(0, wcCount).map(t => Object.assign({}, t, { berth: "Wild Card" }));
-  const bubble = rest.slice(wcCount, wcCount + 4).map(t => Object.assign({}, t, { berth: "In the hunt" }));
   const inField = winners.concat(wc).map((t, i) => Object.assign({}, t, { seed: i + 1 }));
-  return { seeds: inField, bubble, byDiv };
+  const inIds = new Set(inField.map(t => t.id));
+  const cutoffWins = inField.length ? Math.min.apply(null, inField.map(t => t.w)) : 0;
+  const leaderWins = {};
+  winners.forEach(w => { leaderWins[w.division] = w.w; });
+  const alive = teams.filter(t => !inIds.has(t.id) && stillAlive(t, cutoffWins, leaderWins[t.division]));
+  alive.sort((a, b) => {
+    const ga = cutoffWins - a.w, gb = cutoffWins - b.w;
+    if (ga !== gb) return ga - gb;
+    return seedSort(a, b);
+  });
+  const bubble = alive.slice(0, HUNT_CAP).map(t => {
+    const gb = cutoffWins - t.w;
+    const bits = ["In the hunt"];
+    if (gb <= 0) bits.push("tied");
+    else bits.push(gb + " GB");
+    if (t.remaining > 0) bits.push(t.remaining + " left");
+    return Object.assign({}, t, { berth: bits.join(" \u00b7 ") });
+  });
+  return { seeds: inField, bubble, aliveCount: alive.length, cutoffWins, byDiv };
 }
 
 async function loadRankings(force) {
@@ -92,7 +120,7 @@ async function loadRankings(force) {
   const hint = $("prHint");
   hint.textContent = "Fetching standings and weekly matchup scores from Fantrax…";
   try {
-    const cacheKey = "fl_rank_" + leagueId;
+    const cacheKey = "fl_rank_v2_" + leagueId;
     if (!force) {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
@@ -112,6 +140,8 @@ async function loadRankings(force) {
     const lastReg = lastRegularPeriod(info);
     const periods = ((info.scoringPeriods) || []).filter(p => Number(p.number) <= lastReg);
     const periodNums = periods.length ? periods.map(p => Number(p.number)).sort((a,b)=>a-b) : Array.from({length: lastReg}, (_, i) => i + 1);
+    const periodMeta = {};
+    periods.forEach(p => { periodMeta[Number(p.number)] = p; });
 
     const [standings, ...weekPayloads] = await Promise.all([
       fetchJson(FX.standings(leagueId)),
@@ -123,8 +153,12 @@ async function loadRankings(force) {
       const w = weekFromMatchups(d.matchups || []);
       if (w.games > 0) weeks[n] = w;
     });
-    const completedWeeks = Object.keys(weeks).map(Number).sort((a,b)=>a-b);
+    const now = Date.now();
+    const completedWeeks = Object.keys(weeks).map(Number).filter(n => weekIsComplete(n, weeks[n], periodMeta[n], now)).sort((a,b)=>a-b);
+    const futureWeeks = Object.keys(weeks).map(Number).filter(n => completedWeeks.indexOf(n) < 0).sort((a,b)=>a-b);
     const recentWeeks = completedWeeks.slice(-2);
+    const lastDone = completedWeeks.length ? completedWeeks[completedWeeks.length - 1] : 0;
+    const weeksLeft = Math.max(0, lastReg - lastDone);
     const teamInfo = info.teamInfo || {};
     const rows = (standings || []).map(s => {
       const rec = parseRecord(s.points);
@@ -140,12 +174,20 @@ async function loadRankings(force) {
       const recentPf = recentWeeks.map(n => weeks[n].pf[id]).filter(v => v != null);
       const recentPa = recentWeeks.map(n => weeks[n].pa[id]).filter(v => v != null);
       const recentG = recentWeeks.map(n => weeks[n].nGames[id] || 0);
+      let remaining = 0;
+      futureWeeks.forEach(n => { remaining += weeks[n].nGames[id] || 0; });
+      if (remaining === 0 && weeksLeft > 0) {
+        const played = rec.w + rec.l + rec.t;
+        const avgG = completedWeeks.length ? played / completedWeeks.length : 2;
+        remaining = Math.round(avgG * weeksLeft);
+      }
       return {
         id, name: s.teamName || meta.name || id,
         division: meta.division || "",
         rankApi: s.rank,
         winPct: Number(s.winPercentage || 0),
         w: rec.w, l: rec.l, t: rec.t,
+        remaining: remaining,
         pfTotal: weeklyPf.reduce((a,b)=>a+b,0),
         seasonAvg: avg(weeklyPf),
         recent: avg(recentPf),
@@ -172,7 +214,7 @@ async function loadRankings(force) {
     rows.sort((a, b) => b.power - a.power);
     rows.forEach((r, i) => { r.powerRank = i + 1; });
 
-    rankingData = { rows, weeks, completedWeeks, recentWeeks, lastReg, fetchedAt: new Date().toISOString() };
+    rankingData = { rows, weeks, completedWeeks, recentWeeks, lastReg, weeksLeft, fetchedAt: new Date().toISOString() };
     try { sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), data: rankingData })); } catch (_) {}
     renderRankings();
     hint.textContent = "Live from Fantrax \u00b7 regular season weeks 1\u2013" + lastReg + " \u00b7 last 2 weeks for form: " + recentWeeks.join(" + ") + ".";
@@ -185,7 +227,7 @@ function renderRankings() {
   if (!rankingData) return;
   const { rows, recentWeeks, lastReg } = rankingData;
   $("prWeekLabel").textContent = "Thru week " + lastReg + " \u00b7 form " + (recentWeeks || []).join("+");
-  $("prMeta").innerHTML = "Weights <strong>50% recent / 30% season avg / 20% win%</strong>. Games/Wk is the average number of unique H2H matchups in the last two weeks (not hardcoded).";
+  $("prMeta").innerHTML = "Weights <strong>50% recent / 30% season avg / 20% win%</strong>. Hunt list = teams that can still reach the last playoff spot or their division leader (cap " + HUNT_CAP + ").";
   $("prBody").innerHTML = rows.map(r => {
     const mine = r.id === teamId ? " mine" : "";
     return "<tr class='" + mine + "'>" +
@@ -208,8 +250,8 @@ function renderRankings() {
 
 function renderLeagueTable(bodyId, pic) {
   const rows = pic.seeds.concat(pic.bubble);
-  $(bodyId).innerHTML = rows.map(r => {
-    const cls = r.berth === "Division Winner" ? "seed-dw" : (r.berth === "Wild Card" ? "seed-wc" : "seed-out");
+  let html = rows.map(r => {
+    const cls = r.berth.indexOf("Division") === 0 ? "seed-dw" : (r.berth.indexOf("Wild") === 0 ? "seed-wc" : "seed-out");
     return "<tr class='" + (r.id === teamId ? "mine" : "") + "'>" +
       "<td class='rank-cell'>" + (r.seed || "") + "</td>" +
       "<td class='" + cls + "'>" + r.name + "</td>" +
@@ -219,6 +261,12 @@ function renderLeagueTable(bodyId, pic) {
       "<td class='num'>" + (r.winPct * 100).toFixed(1) + "%</td>" +
       "<td class='" + cls + "'>" + r.berth + "</td></tr>";
   }).join("");
+  if (!pic.bubble.length) {
+    html += "<tr><td></td><td class='seed-out' colspan='6'>No teams mathematically in the race</td></tr>";
+  } else if (pic.aliveCount > pic.bubble.length) {
+    html += "<tr><td></td><td class='seed-out' colspan='6'>+" + (pic.aliveCount - pic.bubble.length) + " more still alive (showing closest " + HUNT_CAP + ")</td></tr>";
+  }
+  $(bodyId).innerHTML = html;
 }
 
 function renderDivisions(rows) {
