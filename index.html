@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+<!-- LOGIN -->
 <div id="loginScreen" class="screen">
   <div class="panel-box">
     <h1>Franchise Legends</h1>
@@ -22,6 +23,8 @@
     <div class="error-msg" id="loginError"></div>
   </div>
 </div>
+
+<!-- SETUP -->
 <div id="setupScreen" class="screen hidden">
   <div class="panel-box">
     <h1>Connect League</h1>
@@ -45,6 +48,93 @@
     <div class="status-msg" id="setupStatus"></div>
   </div>
 </div>
+
+<!-- LEAGUE DASHBOARD -->
+<div id="leagueDash" class="hidden">
+  <div class="header">
+    <div>
+      <h1 id="leagueDashTitle">Franchise Legends</h1>
+      <div class="sub" id="leagueDashSub">Power Rankings · Playoff Picture</div>
+    </div>
+    <div class="header-right">
+      <button type="button" class="cs-btn" id="toLineupBtn">My Lineup</button>
+      <button type="button" class="cs-btn" id="refreshRankBtn">Refresh Stats</button>
+      <button type="button" class="cs-btn" id="changeTeamBtn2">Change Team</button>
+    </div>
+  </div>
+  <div class="app-nav">
+    <button type="button" class="cs-btn year-tab active" id="navLeague">League</button>
+    <button type="button" class="cs-btn year-tab" id="navLineup">Lineup</button>
+  </div>
+  <div class="hint-bar" id="prHint">
+    Loading live Fantrax standings and weekly matchup scores…
+  </div>
+  <div class="pr-meta" id="prMeta"></div>
+
+  <div class="section">
+    <h2>Power Rankings <span class="count" id="prWeekLabel"></span></h2>
+    <div class="pr-table-wrap">
+      <table class="pr-table" id="prTable">
+        <thead>
+          <tr>
+            <th>Rk</th>
+            <th>Team</th>
+            <th>Div</th>
+            <th class="num">Recent 2-Wk</th>
+            <th class="num">Season Avg</th>
+            <th class="num">Win%</th>
+            <th class="num">W-L-T</th>
+            <th class="num">Power</th>
+            <th>Trend</th>
+            <th class="num">Recent PA</th>
+            <th class="num">Gms / Wk</th>
+          </tr>
+        </thead>
+        <tbody id="prBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Playoff Picture <span class="count">12 teams · MLB divisions</span></h2>
+    <div class="playoff-grid">
+      <div class="panel">
+        <h3>American League</h3>
+        <div class="pr-table-wrap" style="border:none;margin:0">
+          <table class="pr-table" id="alTable">
+            <thead><tr><th>Seed</th><th>Team</th><th>Div</th><th class="num">W</th><th class="num">L</th><th class="num">Win%</th><th>Berth</th></tr></thead>
+            <tbody id="alBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>National League</h3>
+        <div class="pr-table-wrap" style="border:none;margin:0">
+          <table class="pr-table" id="nlTable">
+            <thead><tr><th>Seed</th><th>Team</th><th>Div</th><th class="num">W</th><th class="num">L</th><th class="num">Win%</th><th>Berth</th></tr></thead>
+            <tbody id="nlBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Division Standings</h2>
+    <div class="div-grid" id="divGrid"></div>
+  </div>
+
+  <div class="rules-bar">
+    <strong>Method (matches the league workbook):</strong>
+    Power = 50% last-2-weeks PF + 30% season weekly PF average + 20% win%.
+    Each component is min–max normalized 0–100 across all 30 teams.
+    Weekly PF is that team’s period total. Weekly PA is the <em>average</em> of unique opponents’ period totals that week — 1, 2, 3, or 4 games, no assumed matchup count.
+    Playoffs: 3 division winners + 3 wild cards per league (12 teams). Regular season only.
+  </div>
+  <div class="footer">Franchise Legends · Live Fantrax power rankings</div>
+</div>
+
+<!-- DASHBOARD -->
 <div id="dashboard" class="hidden">
   <div class="header">
     <div>
@@ -52,8 +142,9 @@
       <div class="sub" id="leagueSub">Franchise Legends</div>
     </div>
     <div class="header-right">
-      <button type="button" class="cs-btn" id="changeTeamBtn">Change Team</button>
-      <button type="button" class="cs-btn" id="resetContractsBtn">Reset Contracts</button>
+      <button type="button" class="cs-btn" id="toLeagueBtn">League</button>
+      <button type="button" class="cs-btn" id="changeTeamBtn" title="Change league or team">Change Team</button>
+      <button type="button" class="cs-btn" id="resetContractsBtn" title="Clear all extension, R1→R2, and freeze choices">Reset Contracts</button>
       <div class="salary-box">
         <div class="amount" id="salaryAmount">$0 / $0</div>
         <div class="cap" id="capSpace">Cap Space: $0</div>
@@ -61,19 +152,30 @@
     </div>
   </div>
   <div class="year-tabs" id="yearTabs"></div>
-  <div class="hint-bar"><strong>Drag</strong> players to eligible slots. Mark <strong>R1→R2</strong> for offseason graduation.</div>
-  <div class="rules-bar"><strong>Rules:</strong> R1→R2 is offseason: same salary, leaves Minors, carries over. R2 must extend or release after their R2 season.</div>
+  <div class="hint-bar">
+    <strong>Drag</strong> players to eligible slots. <strong>All can play UT</strong>.
+    On <strong>2026</strong>: extend <strong>1</strong> / <strong>R2</strong>, mark <strong>R1→R2</strong>, or <strong>Freeze</strong> a contract.
+  </div>
+  <div class="rules-bar">
+    <strong>Rules (constitution):</strong>
+    Offseason/keeper budget <strong>$260</strong> · in-season <strong>$360</strong>.
+    Extend “1” up to 4 yrs (+$3/yr) or 5 yrs with F (+$1/yr). One F benefit per team.
+    R1→R2 is an <strong>offseason</strong> change (manual mark): same salary, leaves Minors, carries over.
+  </div>
   <div class="field-container">
-    <div class="diamond-area"><div class="diamond"><div class="dirt"></div>
-      <div class="slot slot-of1" data-slot="OF_0" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
-      <div class="slot slot-of2" data-slot="OF_1" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
-      <div class="slot slot-of3" data-slot="OF_2" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
-      <div class="slot slot-ss" data-slot="SS" data-pos="SS" data-status="ACTIVE"><div class="pos-tag">SS</div></div>
-      <div class="slot slot-2b" data-slot="2B" data-pos="2B" data-status="ACTIVE"><div class="pos-tag">2B</div></div>
-      <div class="slot slot-3b" data-slot="3B" data-pos="3B" data-status="ACTIVE"><div class="pos-tag">3B</div></div>
-      <div class="slot slot-1b" data-slot="1B" data-pos="1B" data-status="ACTIVE"><div class="pos-tag">1B</div></div>
-      <div class="slot slot-c" data-slot="C" data-pos="C" data-status="ACTIVE"><div class="pos-tag">C</div></div>
-    </div></div>
+    <div class="diamond-area">
+      <div class="diamond">
+        <div class="dirt"></div>
+        <div class="slot slot-of1" data-slot="OF_0" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
+        <div class="slot slot-of2" data-slot="OF_1" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
+        <div class="slot slot-of3" data-slot="OF_2" data-pos="OF" data-status="ACTIVE"><div class="pos-tag">OF</div></div>
+        <div class="slot slot-ss" data-slot="SS" data-pos="SS" data-status="ACTIVE"><div class="pos-tag">SS</div></div>
+        <div class="slot slot-2b" data-slot="2B" data-pos="2B" data-status="ACTIVE"><div class="pos-tag">2B</div></div>
+        <div class="slot slot-3b" data-slot="3B" data-pos="3B" data-status="ACTIVE"><div class="pos-tag">3B</div></div>
+        <div class="slot slot-1b" data-slot="1B" data-pos="1B" data-status="ACTIVE"><div class="pos-tag">1B</div></div>
+        <div class="slot slot-c" data-slot="C" data-pos="C" data-status="ACTIVE"><div class="pos-tag">C</div></div>
+      </div>
+    </div>
     <div class="side-panel">
       <div class="panel"><h3>Starting Pitchers <span>4</span></h3><div class="pitcher-grid" id="spGrid"></div></div>
       <div class="panel"><h3>Relief Pitchers <span>3</span></h3><div class="pitcher-grid" id="rpGrid"></div></div>
@@ -81,11 +183,24 @@
       <div class="panel"><h3>Utility <span>2</span></h3><div class="ut-grid" id="utGrid"></div></div>
     </div>
   </div>
-  <div class="section"><h2>Reserve / Bench <span class="count" id="benchCount">0 / 7</span></h2><div class="bench-grid drop-zone" id="benchGrid" data-status="RESERVE" data-pos="BENCH"></div></div>
-  <div class="section"><h2>Injured Reserve <span class="count" id="irCount">0</span></h2><div class="bench-grid drop-zone" id="irGrid" data-status="INJURED_RESERVE" data-pos="IR"></div></div>
-  <div class="section"><h2>Minors <span class="count" id="minorsCount">0</span></h2><div class="bench-grid drop-zone" id="minorsGrid" data-status="MINORS" data-pos="MINORS"></div></div>
-  <div class="section" id="expiredSection" style="display:none"><h2>Expired / Released <span class="count" id="expiredCount">0</span></h2><div class="bench-grid" id="expiredGrid"></div></div>
-  <div class="footer">Franchise Legends · Constitution-aligned planner · Fantrax live data</div>
+  <div class="section">
+    <h2>Reserve / Bench <span class="count" id="benchCount">0 / 7</span></h2>
+    <div class="bench-grid drop-zone" id="benchGrid" data-status="RESERVE" data-pos="BENCH"></div>
+  </div>
+  <div class="section">
+    <h2>Injured Reserve <span class="count" id="irCount">0</span></h2>
+    <div class="bench-grid drop-zone" id="irGrid" data-status="INJURED_RESERVE" data-pos="IR"></div>
+  </div>
+  <div class="section">
+    <h2>Minors <span class="count" id="minorsCount">0</span></h2>
+    <div class="bench-grid drop-zone" id="minorsGrid" data-status="MINORS" data-pos="MINORS"></div>
+  </div>
+  <div class="section" id="expiredSection" style="display:none">
+    <h2>Expired / Released <span class="count" id="expiredCount">0</span></h2>
+    <div class="bench-grid" id="expiredGrid"></div>
+  </div>
+  <div class="footer">Franchise Legends · Cincinnati Reds · Constitution-aligned planner</div>
+  <div class="toast" id="toast"></div>
 </div>
 <div class="toast" id="toast"></div>
 <script src="app.js"></script>
