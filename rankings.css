@@ -1,0 +1,44 @@
+/* League dashboard */
+.app-nav { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.pr-meta { color: var(--text-3); font-size: 0.8rem; margin-bottom: 12px; line-height: 1.45; }
+.pr-meta strong { color: var(--accent); font-weight: 400; }
+.pr-table-wrap {
+  overflow-x: auto;
+  background: var(--secondary-bg);
+  border: 2px solid;
+  border-color: var(--border-light) var(--border-dark) var(--border-dark) var(--border-light);
+  margin-bottom: 20px;
+}
+table.pr-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+table.pr-table th, table.pr-table td {
+  padding: 7px 8px; text-align: left;
+  border-bottom: 1px solid var(--border-dark); white-space: nowrap;
+}
+table.pr-table th {
+  color: var(--accent); font-weight: 400; text-transform: uppercase;
+  letter-spacing: 0.05em; font-size: 0.7rem;
+}
+table.pr-table td.num, table.pr-table th.num { text-align: right; }
+table.pr-table tr.mine { background: rgba(196,181,80,0.12); }
+table.pr-table tr:hover { background: rgba(222,223,214,0.04); }
+.rank-cell { color: var(--accent); width: 2.2em; }
+.trend-cell { letter-spacing: 0.05em; }
+.playoff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+@media (max-width: 800px) { .playoff-grid { grid-template-columns: 1fr; } }
+.seed-dw { color: var(--accent); }
+.seed-wc { color: var(--text); }
+.seed-out { color: var(--text-3); }
+.div-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 800px) { .div-grid { grid-template-columns: 1fr; } }
+.div-card h3 { margin-bottom: 6px; }
+.div-card .row {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 0.78rem; padding: 3px 0;
+  border-bottom: 1px solid var(--border-dark);
+}
+.div-card .row.winner { color: var(--accent); }
+#leagueDash { padding: 20px 24px 48px; }
+@media (max-width: 640px) {
+  #leagueDash { padding: 10px 10px 32px; }
+  table.pr-table { font-size: 0.74rem; }
+}
