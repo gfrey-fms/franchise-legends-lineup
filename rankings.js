@@ -118,7 +118,7 @@ function leaguePicture(teams) {
 async function loadRankings(force) {
   if (!leagueId) return;
   const hint = $("prHint");
-  hint.textContent = "Fetching standings and weekly matchup scores from Fantrax…";
+  if (hint) hint.textContent = "Fetching standings and weekly matchup scores from Fantrax…";
   try {
     const cacheKey = "fl_rank_v2_" + leagueId;
     if (!force) {
@@ -129,25 +129,23 @@ async function loadRankings(force) {
           if (parsed && parsed.at && (Date.now() - parsed.at < 30 * 60 * 1000)) {
             rankingData = parsed.data;
             renderRankings();
-            hint.textContent = "Showing cached live pull (≤30 min). Refresh Stats for a new pull.";
+            if (hint) hint.textContent = "Showing cached live pull (≤30 min). Refresh Stats for a new pull.";
             return;
           }
         } catch (_) {}
       }
     }
-    const info = leagueInfo || await fetchJson(FX.league(leagueId));
+    const info = leagueInfo || await fetchJson(FX.league(leagueId) + "&excludePlayerInfo=true");
     leagueInfo = info;
     const lastReg = lastRegularPeriod(info);
     const periods = ((info.scoringPeriods) || []).filter(p => Number(p.number) <= lastReg);
     const periodNums = periods.length ? periods.map(p => Number(p.number)).sort((a,b)=>a-b) : Array.from({length: lastReg}, (_, i) => i + 1);
     const periodMeta = {};
     periods.forEach(p => { periodMeta[Number(p.number)] = p; });
-
     const [standings, ...weekPayloads] = await Promise.all([
       fetchJson(FX.standings(leagueId)),
       ...periodNums.map(n => fetchJson(FX.matchups(leagueId, n)).then(d => ({ n, d })).catch(() => ({ n, d: { matchups: [] } }))),
     ]);
-
     const weeks = {};
     weekPayloads.forEach(({ n, d }) => {
       const w = weekFromMatchups(d.matchups || []);
@@ -164,12 +162,11 @@ async function loadRankings(force) {
       const rec = parseRecord(s.points);
       const id = s.teamId;
       const meta = teamInfo[id] || {};
-      const weeklyPf = [], weeklyPa = [], weeklyG = [];
+      const weeklyPf = [], weeklyPa = [];
       completedWeeks.forEach(n => {
         if (weeks[n].pf[id] == null) return;
         weeklyPf.push(weeks[n].pf[id]);
         weeklyPa.push(weeks[n].pa[id]);
-        weeklyG.push(weeks[n].nGames[id] || 0);
       });
       const recentPf = recentWeeks.map(n => weeks[n].pf[id]).filter(v => v != null);
       const recentPa = recentWeeks.map(n => weeks[n].pa[id]).filter(v => v != null);
@@ -196,7 +193,6 @@ async function loadRankings(force) {
         weeksPlayed: weeklyPf.length,
       };
     });
-
     const nR = minMaxNorm(rows.map(r => r.recent));
     const nS = minMaxNorm(rows.map(r => r.seasonAvg));
     const nW = minMaxNorm(rows.map(r => r.winPct));
@@ -213,22 +209,21 @@ async function loadRankings(force) {
     });
     rows.sort((a, b) => b.power - a.power);
     rows.forEach((r, i) => { r.powerRank = i + 1; });
-
     rankingData = { rows, weeks, completedWeeks, recentWeeks, lastReg, weeksLeft, fetchedAt: new Date().toISOString() };
     try { sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), data: rankingData })); } catch (_) {}
     renderRankings();
-    hint.textContent = "Live from Fantrax \u00b7 regular season weeks 1\u2013" + lastReg + " \u00b7 last 2 weeks for form: " + recentWeeks.join(" + ") + ".";
+    if (hint) hint.textContent = "Live from Fantrax \u00b7 regular season weeks 1\u2013" + lastReg + " \u00b7 last 2 weeks for form: " + recentWeeks.join(" + ") + ".";
   } catch (e) {
-    hint.textContent = "Could not load rankings: " + (e.message || e);
+    if (hint) hint.textContent = "Could not load rankings: " + (e.message || e);
   }
 }
 
 function renderRankings() {
   if (!rankingData) return;
   const { rows, recentWeeks, lastReg } = rankingData;
-  $("prWeekLabel").textContent = "Thru week " + lastReg + " \u00b7 form " + (recentWeeks || []).join("+");
-  $("prMeta").innerHTML = "Weights <strong>50% recent / 30% season avg / 20% win%</strong>. Hunt list = teams that can still reach the last playoff spot or their division leader (cap " + HUNT_CAP + ").";
-  $("prBody").innerHTML = rows.map(r => {
+  if ($("prWeekLabel")) $("prWeekLabel").textContent = "Thru week " + lastReg + " \u00b7 form " + (recentWeeks || []).join("+");
+  if ($("prMeta")) $("prMeta").innerHTML = "Weights <strong>50% recent / 30% season avg / 20% win%</strong>. Hunt list = teams that can still reach the last playoff spot or their division leader (cap " + HUNT_CAP + ").";
+  if ($("prBody")) $("prBody").innerHTML = rows.map(r => {
     const mine = r.id === teamId ? " mine" : "";
     return "<tr class='" + mine + "'>" +
       "<td class='rank-cell'>" + r.powerRank + "</td>" +
@@ -249,6 +244,8 @@ function renderRankings() {
 }
 
 function renderLeagueTable(bodyId, pic) {
+  const el = $(bodyId);
+  if (!el) return;
   const rows = pic.seeds.concat(pic.bubble);
   let html = rows.map(r => {
     const cls = r.berth.indexOf("Division") === 0 ? "seed-dw" : (r.berth.indexOf("Wild") === 0 ? "seed-wc" : "seed-out");
@@ -266,10 +263,11 @@ function renderLeagueTable(bodyId, pic) {
   } else if (pic.aliveCount > pic.bubble.length) {
     html += "<tr><td></td><td class='seed-out' colspan='6'>+" + (pic.aliveCount - pic.bubble.length) + " more still alive (showing closest " + HUNT_CAP + ")</td></tr>";
   }
-  $(bodyId).innerHTML = html;
+  el.innerHTML = html;
 }
 
 function renderDivisions(rows) {
+  if (!$("divGrid")) return;
   const order = ["AL East","AL Central","AL West","NL East","NL Central","NL West"];
   const byDiv = {};
   rows.forEach(r => { (byDiv[r.division] ||= []).push(r); });
@@ -291,31 +289,129 @@ showScreen = function(name) {
   });
 };
 
-enterDashboard = function() {
-  const tid = $("teamSelect").value;
+function pickDefaultTeam(teams) {
+  const saved = sessionStorage.getItem("fl_teamId");
+  if (saved && teams.some(t => t.id === saved)) return saved;
+  const reds = teams.find(t => /cincinnati reds/i.test(t.name));
+  if (reds) return reds.id;
+  return teams[0] ? teams[0].id : null;
+}
+function applyTeam(tid) {
   const team = (window._fxTeams || []).find(t => t.id === tid);
-  if (!team) { $("setupError").textContent = "Select a team."; return; }
+  if (!team) return false;
   teamId = tid;
   teamName = team.name;
   basePlayers = buildRosterFromTeam(team);
   currentYear = CURRENT_YEAR;
   sessionStorage.setItem("fl_teamId", tid);
-  $("teamTitle").textContent = teamName;
-  $("leagueSub").textContent = leagueName + " \u00b7 Fantrax " + leagueId;
+  if ($("teamTitle")) $("teamTitle").textContent = teamName;
+  if ($("leagueSub")) $("leagueSub").textContent = leagueName + " \u00b7 Fantrax " + leagueId;
   if ($("leagueDashTitle")) $("leagueDashTitle").textContent = leagueName || "Franchise Legends";
   if ($("leagueDashSub")) $("leagueDashSub").textContent = teamName + " \u00b7 Power Rankings";
+  if ($("teamSelect")) $("teamSelect").value = tid;
+  return true;
+}
+function hydrateRosters(id) {
+  fetchJson(FX.rosters(id)).then(rosters => {
+    const teams = Object.entries(rosters.rosters || {}).map(([tid, t]) => ({
+      id: tid,
+      name: t.teamName || tid,
+      count: (t.rosterItems || []).length,
+      items: t.rosterItems || [],
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    if (!teams.length) return;
+    window._fxTeams = teams;
+    const sel = $("teamSelect");
+    if (sel) {
+      sel.innerHTML = teams.map(t => '<option value="' + t.id + '">' + t.name + " (" + t.count + ")</option>").join("");
+      if (teamId) sel.value = teamId;
+    }
+    if (teamId) applyTeam(teamId);
+  }).catch(() => {});
+}
+
+loadLeague = async function() {
+  const input = $("leagueIdInput");
+  const id = ((input && input.value) || "").trim();
+  if ($("setupError")) $("setupError").textContent = "";
+  if ($("setupStatus")) { $("setupStatus").textContent = ""; $("setupStatus").className = "status-msg"; }
+  if (!id) {
+    if ($("setupError")) $("setupError").textContent = "Enter a Fantrax league ID.";
+    return;
+  }
+  if ($("loadLeagueBtn")) $("loadLeagueBtn").disabled = true;
+  if ($("setupStatus")) $("setupStatus").textContent = "Loading league…";
+  try {
+    const league = await fetchJson(FX.league(id) + "&excludePlayerInfo=true");
+    leagueId = id;
+    leagueName = league.leagueName || "Fantrax League";
+    leagueInfo = league;
+    playerInfo = league.playerInfo || {};
+    const teamInfo = league.teamInfo || {};
+    const teams = Object.entries(teamInfo).map(([tid, t]) => ({
+      id: tid,
+      name: (t && (t.name || t.teamName)) || tid,
+      count: 0,
+      items: [],
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    if (!teams.length) throw new Error("No teams found for this league ID.");
+    window._fxTeams = teams;
+    const sel = $("teamSelect");
+    if (sel) sel.innerHTML = teams.map(t => '<option value="' + t.id + '">' + t.name + "</option>").join("");
+    const tid = pickDefaultTeam(teams);
+    if (sel && tid) sel.value = tid;
+    if ($("teamField")) $("teamField").classList.remove("hidden");
+    if ($("enterRow")) $("enterRow").classList.remove("hidden");
+    sessionStorage.setItem("fl_leagueId", id);
+    applyTeam(tid);
+    if ($("setupStatus")) {
+      $("setupStatus").className = "status-msg ok";
+      $("setupStatus").textContent = "Loaded " + leagueName + " \u00b7 " + teams.length + " teams";
+    }
+    showScreen("leagueDash");
+    loadRankings(true);
+    hydrateRosters(id);
+  } catch (e) {
+    if ($("setupError")) $("setupError").textContent = "Could not load league: " + (e.message || e);
+    if ($("setupStatus")) $("setupStatus").textContent = "";
+  } finally {
+    if ($("loadLeagueBtn")) $("loadLeagueBtn").disabled = false;
+  }
+};
+
+enterDashboard = function() {
+  const tid = $("teamSelect") ? $("teamSelect").value : teamId;
+  if (!applyTeam(tid)) {
+    if ($("setupError")) $("setupError").textContent = "Select a team.";
+    return;
+  }
   showScreen("leagueDash");
   loadRankings(false);
 };
 
 function bindRankingNav() {
   const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
+  on("loadLeagueBtn", () => loadLeague());
+  on("enterDashBtn", () => enterDashboard());
   on("changeTeamBtn2", () => showSetup());
-  on("toLineupBtn", () => { showScreen("dashboard"); render(); });
+  on("toLineupBtn", () => {
+    if (teamId) applyTeam(teamId);
+    showScreen("dashboard");
+    if (typeof render === "function") render();
+  });
   on("toLeagueBtn", () => { showScreen("leagueDash"); if (!rankingData) loadRankings(false); else renderRankings(); });
   on("navLeague", () => { showScreen("leagueDash"); if (!rankingData) loadRankings(false); else renderRankings(); });
-  on("navLineup", () => { showScreen("dashboard"); render(); });
+  on("navLineup", () => {
+    if (teamId) applyTeam(teamId);
+    showScreen("dashboard");
+    if (typeof render === "function") render();
+  });
   on("refreshRankBtn", () => loadRankings(true));
+  const lid = $("leagueIdInput");
+  if (lid && !lid._rankBound) {
+    lid._rankBound = true;
+    lid.addEventListener("keydown", e => { if (e.key === "Enter") loadLeague(); });
+  }
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindRankingNav);
 else bindRankingNav();
