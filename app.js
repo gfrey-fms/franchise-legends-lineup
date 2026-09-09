@@ -14,12 +14,13 @@ let leagueId = null, leagueName = "", teamId = null, teamName = "";
 let basePlayers = [];
 let currentYear = CURRENT_YEAR;
 let state = {};
-let slotOverrides = {}; // year -> playerId -> {position, status}
+let slotOverrides = {};
 let playerNames = {};
 let playerInfo = {};
 
 function showToast(msg, isError) {
   const t = document.getElementById("toast");
+  if (!t) return;
   t.textContent = msg;
   t.className = "toast show" + (isError ? " error" : "");
   clearTimeout(t._timer);
@@ -27,18 +28,22 @@ function showToast(msg, isError) {
 }
 function $(id) { return document.getElementById(id); }
 function showScreen(name) {
-  ["loginScreen", "setupScreen", "dashboard"].forEach(id => {
-    $(id).classList.toggle("hidden", id !== name);
+  ["loginScreen", "setupScreen", "leagueDash", "dashboard"].forEach(id => {
+    const el = $(id);
+    if (el) el.classList.toggle("hidden", id !== name);
   });
 }
 function isAuthed() { return sessionStorage.getItem("fl_auth") === "1"; }
 function doLogin() {
-  if ($("passwordInput").value === APP_PASSWORD) {
+  const input = $("passwordInput");
+  const err = $("loginError");
+  if (!input) return;
+  if (input.value === APP_PASSWORD) {
     sessionStorage.setItem("fl_auth", "1");
-    $("loginError").textContent = "";
+    if (err) err.textContent = "";
     showSetup();
-  } else {
-    $("loginError").textContent = "Incorrect password.";
+  } else if (err) {
+    err.textContent = "Incorrect password.";
   }
 }
 function doLogout() {
@@ -50,7 +55,11 @@ function doLogout() {
 function showSetup() {
   showScreen("setupScreen");
   const saved = sessionStorage.getItem("fl_leagueId");
-  if (saved) $("leagueIdInput").value = saved;
+  if (saved && $("leagueIdInput")) $("leagueIdInput").value = saved;
+}
+function bind(id, ev, fn) {
+  const el = $(id);
+  if (el) el.addEventListener(ev, fn);
 }
 
 async function fetchJson(url) {
@@ -63,7 +72,7 @@ async function ensurePlayerNames() {
   if (cached) {
     try { playerNames = JSON.parse(cached); return; } catch (_) {}
   }
-  $("setupStatus").textContent = "Downloading MLB player list (one-time)…";
+  if ($("setupStatus")) $("setupStatus").textContent = "Downloading MLB player list (one-time)...";
   const data = await fetchJson(FX.players());
   const map = {};
   for (const [id, p] of Object.entries(data)) {
@@ -74,16 +83,15 @@ async function ensurePlayerNames() {
 }
 
 async function loadLeague() {
-  const id = $("leagueIdInput").value.trim();
-  $("setupError").textContent = "";
-  $("setupStatus").textContent = "";
-  $("setupStatus").className = "status-msg";
-  if (!id) { $("setupError").textContent = "Enter a Fantrax league ID."; return; }
-  $("loadLeagueBtn").disabled = true;
-  $("setupStatus").textContent = "Loading league…";
+  const id = (($("leagueIdInput") && $("leagueIdInput").value) || "").trim();
+  if ($("setupError")) $("setupError").textContent = "";
+  if ($("setupStatus")) { $("setupStatus").textContent = ""; $("setupStatus").className = "status-msg"; }
+  if (!id) { if ($("setupError")) $("setupError").textContent = "Enter a Fantrax league ID."; return; }
+  if ($("loadLeagueBtn")) $("loadLeagueBtn").disabled = true;
+  if ($("setupStatus")) $("setupStatus").textContent = "Loading league...";
   try {
     await ensurePlayerNames();
-    $("setupStatus").textContent = "Fetching rosters…";
+    if ($("setupStatus")) $("setupStatus").textContent = "Fetching rosters...";
     const [rosters, league] = await Promise.all([
       fetchJson(FX.rosters(id)),
       fetchJson(FX.league(id)),
@@ -100,19 +108,23 @@ async function loadLeague() {
     if (!teams.length) throw new Error("No teams found for this league ID.");
     window._fxTeams = teams;
     const sel = $("teamSelect");
-    sel.innerHTML = teams.map(t => '<option value="' + t.id + '">' + t.name + " (" + t.count + ")</option>").join("");
-    const savedTeam = sessionStorage.getItem("fl_teamId");
-    if (savedTeam && teams.some(t => t.id === savedTeam)) sel.value = savedTeam;
-    $("teamField").classList.remove("hidden");
-    $("enterRow").classList.remove("hidden");
-    $("setupStatus").className = "status-msg ok";
-    $("setupStatus").textContent = "Loaded " + leagueName + " · " + teams.length + " teams";
+    if (sel) {
+      sel.innerHTML = teams.map(t => "<option value=\"" + t.id + "\">" + t.name + " (" + t.count + ")</option>").join("");
+      const savedTeam = sessionStorage.getItem("fl_teamId");
+      if (savedTeam && teams.some(t => t.id === savedTeam)) sel.value = savedTeam;
+    }
+    if ($("teamField")) $("teamField").classList.remove("hidden");
+    if ($("enterRow")) $("enterRow").classList.remove("hidden");
+    if ($("setupStatus")) {
+      $("setupStatus").className = "status-msg ok";
+      $("setupStatus").textContent = "Loaded " + leagueName + " · " + teams.length + " teams";
+    }
     sessionStorage.setItem("fl_leagueId", id);
   } catch (e) {
-    $("setupError").textContent = "Could not load league: " + (e.message || e);
-    $("setupStatus").textContent = "";
+    if ($("setupError")) $("setupError").textContent = "Could not load league: " + (e.message || e);
+    if ($("setupStatus")) $("setupStatus").textContent = "";
   } finally {
-    $("loadLeagueBtn").disabled = false;
+    if ($("loadLeagueBtn")) $("loadLeagueBtn").disabled = false;
   }
 }
 
@@ -132,16 +144,16 @@ function buildRosterFromTeam(team) {
 }
 
 function enterDashboard() {
-  const tid = $("teamSelect").value;
+  const tid = $("teamSelect") ? $("teamSelect").value : teamId;
   const team = (window._fxTeams || []).find(t => t.id === tid);
-  if (!team) { $("setupError").textContent = "Select a team."; return; }
+  if (!team) { if ($("setupError")) $("setupError").textContent = "Select a team."; return; }
   teamId = tid; teamName = team.name;
   basePlayers = buildRosterFromTeam(team);
   slotOverrides = {};
   currentYear = CURRENT_YEAR;
   sessionStorage.setItem("fl_teamId", tid);
-  $("teamTitle").textContent = teamName;
-  $("leagueSub").textContent = leagueName + " · Fantrax " + leagueId;
+  if ($("teamTitle")) $("teamTitle").textContent = teamName;
+  if ($("leagueSub")) $("leagueSub").textContent = leagueName + " · Fantrax " + leagueId;
   showScreen("dashboard");
   render();
 }
@@ -151,12 +163,8 @@ function canPlay(p, pos) {
   if (pos === "UT" || pos === "BENCH" || pos === "IR" || pos === "MINORS") return true;
   return eligOf(p).includes(pos);
 }
-function effectiveContract(p) {
-  return p.contract || "1";
-}
-function willGraduateToR2(p) {
-  return (p.contract || "").toUpperCase() === "R1" && !!p.rookieEligible;
-}
+function effectiveContract(p) { return p.contract || "1"; }
+function willGraduateToR2(p) { return (p.contract || "").toUpperCase() === "R1" && !!p.rookieEligible; }
 function isRookieContract(c) {
   const u = (c || "").toUpperCase();
   return u === "R1" || u === "R2";
@@ -219,7 +227,6 @@ function projectOneYear(p) {
   }
   return { ...p, contract: c0, salary: sal0, extension: null, frozen: false };
 }
-
 function rememberSlot(year, player) {
   if (!player || !player.id) return;
   slotOverrides[year] = slotOverrides[year] || {};
@@ -261,21 +268,20 @@ function buildYears() {
   }
   return years;
 }
-
 function emptyCard() {
-  return '<div class="player empty" data-empty="1"><div class="name">Empty</div></div>';
+  return "<div class=\"player empty\" data-empty=\"1\"><div class=\"name\">Empty</div></div>";
 }
 function extControls(p) {
   if (currentYear !== CURRENT_YEAR) return "";
   let html = "";
   if ((p.contract || "").toUpperCase() === "R1") {
     const on = p.rookieEligible ? "on" : "";
-    html += '<button type="button" class="cs-btn ctl-btn r2 ' + on + '" data-action="rookie" data-id="' + p.id + '">' +
+    html += "<button type=\"button\" class=\"cs-btn ctl-btn r2 " + on + "\" data-action=\"rookie\" data-id=\"" + p.id + "\">" +
       (p.rookieEligible ? "R2 (eligible) \u2713" : "Mark R1 \u2192 R2") + "</button>";
   }
   if (canFreeze(p)) {
     const on = p.frozen ? "on" : "";
-    html += '<button type="button" class="cs-btn ctl-btn freeze ' + on + '" data-action="freeze" data-id="' + p.id + '">' +
+    html += "<button type=\"button\" class=\"cs-btn ctl-btn freeze " + on + "\" data-action=\"freeze\" data-id=\"" + p.id + "\">" +
       (p.frozen ? "Frozen \u2713" : "Freeze contract") + "</button>";
   }
   if (needsExtension(p)) {
@@ -283,42 +289,43 @@ function extControls(p) {
     const cur = p.extension || "";
     let cls = "ext-select";
     if (p.extension) cls += p.extension === 5 ? " has-f" : " has-ext";
-    html += '<select class="' + cls + '" data-action="extend" data-id="' + p.id + '">' +
-      '<option value="">No extension (release)</option>' +
-      '<option value="1"' + (cur===1?" selected":"") + '>Extend 1 year (+$3)</option>' +
-      '<option value="2"' + (cur===2?" selected":"") + '>Extend 2 years (+$3/yr)</option>' +
-      '<option value="3"' + (cur===3?" selected":"") + '>Extend 3 years (+$3/yr)</option>' +
-      '<option value="4"' + (cur===4?" selected":"") + '>Extend 4 years (+$3/yr)</option>' +
-      '<option value="5"' + (cur===5?" selected":"") + (hasF && cur!==5 ? " disabled" : "") +
-        '>Extend 5 years F (+$1/yr)' + (hasF && cur!==5 ? " \u2014 F taken" : "") + "</option></select>";
+    html += "<select class=\"" + cls + "\" data-action=\"extend\" data-id=\"" + p.id + "\">" +
+      "<option value=\"\">No extension (release)</option>" +
+      "<option value=\"1\"" + (cur===1?" selected":"") + ">Extend 1 year (+$3)</option>" +
+      "<option value=\"2\"" + (cur===2?" selected":"") + ">Extend 2 years (+$3/yr)</option>" +
+      "<option value=\"3\"" + (cur===3?" selected":"") + ">Extend 3 years (+$3/yr)</option>" +
+      "<option value=\"4\"" + (cur===4?" selected":"") + ">Extend 4 years (+$3/yr)</option>" +
+      "<option value=\"5\"" + (cur===5?" selected":"") + (hasF && cur!==5 ? " disabled" : "") +
+        ">Extend 5 years F (+$1/yr)" + (hasF && cur!==5 ? " \u2014 F taken" : "") + "</option></select>";
   }
-  return html ? '<div class="ext-row">' + html + "</div>" : "";
+  return html ? "<div class=\"ext-row\">" + html + "</div>" : "";
+}
+function safeName(p) {
+  return String((p && p.name) || "").replace(/"/g, "'");
 }
 function playerCard(p) {
   if (!p) return emptyCard();
   const c = effectiveContract(p);
   const elig = eligOf(p).join(", ");
-  return '<div class="player" draggable="true" data-id="' + p.id +
-    '" data-name="' + p.name.replace(/"/g, """) +
-    '" data-eligible=\'' + JSON.stringify(p.eligible) +
-    '\' data-salary="' + p.salary + '" data-contract="' + c +
-    '" data-status="' + p.status + '" data-position="' + p.position + '">' +
-    '<div class="name">' + p.name + "</div>" +
-    '<div class="meta">$' + Number(p.salary).toFixed(0) + " \u00b7 " + (willGraduateToR2(p) ? "R1\u2192R2" : c) + (p.frozen ? " \u2744" : "") + "</div>" +
-    '<div class="elig-hint">' + elig + "</div>" + extControls(p) + "</div>";
+  return "<div class=\"player\" draggable=\"true\" data-id=\"" + p.id +
+    "\" data-name=\"" + safeName(p) +
+    "\" data-salary=\"" + p.salary + "\" data-contract=\"" + c +
+    "\" data-status=\"" + p.status + "\" data-position=\"" + p.position + "\">" +
+    "<div class=\"name\">" + p.name + "</div>" +
+    "<div class=\"meta\">$" + Number(p.salary).toFixed(0) + " \u00b7 " + (willGraduateToR2(p) ? "R1\u2192R2" : c) + (p.frozen ? " \u2744" : "") + "</div>" +
+    "<div class=\"elig-hint\">" + elig + "</div>" + extControls(p) + "</div>";
 }
 function benchCard(p, extraClass) {
   const c = effectiveContract(p);
   const elig = eligOf(p).join(", ");
-  return '<div class="bench-card ' + (extraClass||"") + '" draggable="true" data-id="' + p.id +
-    '" data-name="' + p.name.replace(/"/g, """) +
-    '" data-eligible=\'' + JSON.stringify(p.eligible) +
-    '\' data-salary="' + p.salary + '" data-contract="' + c +
-    '" data-status="' + p.status + '" data-position="' + p.position + '">' +
-    '<div class="top"><div class="left"><div class="name">' + p.name + "</div>" +
-    '<div class="pos">' + p.position + " \u00b7 " + elig + "</div></div>" +
-    '<div class="right"><div class="salary">$' + Number(p.salary).toFixed(0) + "</div>" +
-    '<div class="contract">' + (willGraduateToR2(p) ? "R1\u2192R2" : c) + (p.frozen ? " \u2744" : "") + "</div></div></div>" +
+  return "<div class=\"bench-card " + (extraClass||"") + "\" draggable=\"true\" data-id=\"" + p.id +
+    "\" data-name=\"" + safeName(p) +
+    "\" data-salary=\"" + p.salary + "\" data-contract=\"" + c +
+    "\" data-status=\"" + p.status + "\" data-position=\"" + p.position + "\">" +
+    "<div class=\"top\"><div class=\"left\"><div class=\"name\">" + p.name + "</div>" +
+    "<div class=\"pos\">" + p.position + " \u00b7 " + elig + "</div></div>" +
+    "<div class=\"right\"><div class=\"salary\">$" + Number(p.salary).toFixed(0) + "</div>" +
+    "<div class=\"contract\">" + (willGraduateToR2(p) ? "R1\u2192R2" : c) + (p.frozen ? " \u2744" : "") + "</div></div></div>" +
     extControls(p) + "</div>";
 }
 function getYearPlayers() { return state[currentYear].players; }
@@ -338,6 +345,7 @@ function groupPlayers(list) {
   };
 }
 function fillSlot(container, pos, count, byPos) {
+  if (!container) return;
   container.innerHTML = "";
   const arr = byPos[pos] || [];
   for (let i = 0; i < count; i++) {
@@ -360,9 +368,11 @@ function render() {
   const cap = yd.cap;
   const space = cap - total;
   const amt = $("salaryAmount");
-  amt.textContent = "$" + total.toFixed(0) + " / $" + cap;
-  amt.classList.toggle("over", total > cap);
-  $("capSpace").textContent =
+  if (amt) {
+    amt.textContent = "$" + total.toFixed(0) + " / $" + cap;
+    amt.classList.toggle("over", total > cap);
+  }
+  if ($("capSpace")) $("capSpace").textContent =
     (space >= 0 ? "Cap Space: $" : "Over Cap: $") + Math.abs(space).toFixed(0) +
     (currentYear > CURRENT_YEAR ? " (MiLB R = $0)" : "");
   document.querySelectorAll(".diamond .slot").forEach(slot => {
@@ -378,25 +388,25 @@ function render() {
   fillSlot($("rpGrid"), "RP", 3, g.byPos);
   fillSlot($("pGrid"), "P", 2, g.byPos);
   fillSlot($("utGrid"), "UT", 2, g.byPos);
-  $("benchGrid").innerHTML = g.reserve.map(p => benchCard(p, "bench-only-card")).join("");
-  $("benchCount").textContent = g.reserve.length + " / 7";
-  $("irGrid").innerHTML = g.ir.map(p => benchCard(p, "ir-card")).join("");
-  $("irCount").textContent = g.ir.length;
-  $("minorsGrid").innerHTML = g.minors.map(p => benchCard(p, "minors-card")).join("");
-  $("minorsCount").textContent = g.minors.length;
+  if ($("benchGrid")) $("benchGrid").innerHTML = g.reserve.map(p => benchCard(p, "bench-only-card")).join("");
+  if ($("benchCount")) $("benchCount").textContent = g.reserve.length + " / 7";
+  if ($("irGrid")) $("irGrid").innerHTML = g.ir.map(p => benchCard(p, "ir-card")).join("");
+  if ($("irCount")) $("irCount").textContent = g.ir.length;
+  if ($("minorsGrid")) $("minorsGrid").innerHTML = g.minors.map(p => benchCard(p, "minors-card")).join("");
+  if ($("minorsCount")) $("minorsCount").textContent = g.minors.length;
   const expSec = $("expiredSection");
-  if (currentYear > CURRENT_YEAR) {
+  if (expSec && currentYear > CURRENT_YEAR) {
     const ids = new Set(list.map(p => p.id));
     const expired = basePlayers.filter(p => !ids.has(p.id));
     const prev = state[currentYear - 1] ? state[currentYear - 1].players : basePlayers;
     const prevMap = Object.fromEntries(prev.map(p => [p.id, p]));
-    $("expiredGrid").innerHTML = expired.map(p => {
+    if ($("expiredGrid")) $("expiredGrid").innerHTML = expired.map(p => {
       const src = prevMap[p.id] || p;
       return benchCard({ ...src, status: "EXPIRED" }, "");
     }).join("") || "<div style='color:var(--text-3);font-size:0.85rem'>None</div>";
-    $("expiredCount").textContent = expired.length;
+    if ($("expiredCount")) $("expiredCount").textContent = expired.length;
     expSec.style.display = "block";
-  } else {
+  } else if (expSec) {
     expSec.style.display = "none";
   }
   bindDrag();
@@ -405,7 +415,6 @@ function render() {
 }
 function findInBase(id) { return basePlayers.find(p => p.id === id); }
 function findInYear(id) { return getYearPlayers().find(p => p.id === id); }
-
 function bindExtControls() {
   document.querySelectorAll("[data-action='extend']").forEach(sel => {
     sel.addEventListener("change", e => {
@@ -413,10 +422,8 @@ function bindExtControls() {
       const p = findInBase(sel.dataset.id);
       if (!p) return;
       const v = sel.value;
-      if (!v) {
-        p.extension = null;
-        showToast(p.name + ": no extension \u2192 will release");
-      } else {
+      if (!v) { p.extension = null; showToast(p.name + ": no extension \u2192 will release"); }
+      else {
         const years = parseInt(v, 10);
         if (years === 5 && teamHasF(basePlayers.filter(x => x.id !== p.id))) {
           showToast("Only 1 Franchise (F) tag benefit allowed", true);
@@ -457,7 +464,6 @@ function bindExtControls() {
     btn.addEventListener("mousedown", e => e.stopPropagation());
   });
 }
-
 function bindDrag() {
   let draggedEl = null;
   document.querySelectorAll(".player:not(.empty), .bench-card").forEach(el => {
@@ -545,28 +551,28 @@ function bindDrag() {
     });
   });
 }
-
 function buildTabs() {
   const tabs = $("yearTabs");
+  if (!tabs) return;
   const activeY = currentYear;
   tabs.innerHTML = "";
   Object.keys(state).map(Number).sort().forEach(y => {
     const btn = document.createElement("button");
     btn.className = "year-tab cs-btn" + (y === activeY ? " active" : "");
-    btn.innerHTML = state[y].label + '<span class="cap-note">$' + state[y].cap + "</span>";
+    btn.innerHTML = state[y].label + "<span class=\"cap-note\">$" + state[y].cap + "</span>";
     btn.addEventListener("click", () => { currentYear = y; render(); });
     tabs.appendChild(btn);
   });
 }
 
-$("loginBtn").addEventListener("click", doLogin);
-$("passwordInput").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
-$("loadLeagueBtn").addEventListener("click", loadLeague);
-$("leagueIdInput").addEventListener("keydown", e => { if (e.key === "Enter") loadLeague(); });
-$("enterDashBtn").addEventListener("click", enterDashboard);
-$("logoutBtn").addEventListener("click", doLogout);
-$("changeTeamBtn").addEventListener("click", () => showSetup());
-$("resetContractsBtn").addEventListener("click", () => {
+bind("loginBtn", "click", doLogin);
+bind("passwordInput", "keydown", e => { if (e.key === "Enter") doLogin(); });
+bind("loadLeagueBtn", "click", loadLeague);
+bind("leagueIdInput", "keydown", e => { if (e.key === "Enter") loadLeague(); });
+bind("enterDashBtn", "click", enterDashboard);
+bind("logoutBtn", "click", doLogout);
+bind("changeTeamBtn", "click", () => showSetup());
+bind("resetContractsBtn", "click", () => {
   let n = 0;
   basePlayers.forEach(p => {
     if (p.extension != null || p.rookieEligible || p.frozen) n++;
