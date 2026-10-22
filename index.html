@@ -7,6 +7,7 @@
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/ekmas/cs16.css@main/css/cs16.min.css">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="rankings.css">
+<link rel="stylesheet" href="orphan-draft.css">
 </head>
 <body>
 <!-- LOGIN -->
@@ -47,6 +48,9 @@
     </div>
     <div class="error-msg" id="setupError"></div>
     <div class="status-msg" id="setupStatus"></div>
+    <div class="btn-row">
+      <button type="button" class="cs-btn" id="toOrphanFromSetup">Orphan Draft</button>
+    </div>
   </div>
 </div>
 
@@ -59,6 +63,7 @@
     </div>
     <div class="header-right">
       <button type="button" class="cs-btn" id="toLineupBtn">My Lineup</button>
+      <button type="button" class="cs-btn" id="toOrphanBtn">Orphan Draft</button>
       <button type="button" class="cs-btn" id="refreshRankBtn">Refresh Stats</button>
       <button type="button" class="cs-btn" id="changeTeamBtn2">Change Team</button>
     </div>
@@ -66,6 +71,7 @@
   <div class="app-nav">
     <button type="button" class="cs-btn year-tab active" id="navLeague">League</button>
     <button type="button" class="cs-btn year-tab" id="navLineup">Lineup</button>
+    <button type="button" class="cs-btn year-tab" id="navOrphan">Orphan Draft</button>
   </div>
   <div class="hint-bar" id="prHint">Loading live Fantrax standings and weekly matchup scores…</div>
   <div class="pr-meta" id="prMeta"></div>
@@ -129,6 +135,7 @@
     </div>
     <div class="header-right">
       <button type="button" class="cs-btn" id="toLeagueBtn">League</button>
+      <button type="button" class="cs-btn" id="toOrphanFromLineup">Orphan Draft</button>
       <button type="button" class="cs-btn" id="changeTeamBtn">Change Team</button>
       <button type="button" class="cs-btn" id="resetContractsBtn">Reset Contracts</button>
       <div class="salary-box">
@@ -167,7 +174,12 @@
   <div class="footer">Franchise Legends · Constitution-aligned planner</div>
   <div class="toast" id="toast"></div>
 </div>
+
+<div id="orphanDraft" class="hidden"></div>
+<script src="orphan-draft-config.js"></script>
+<script src="orphan-draft-engine.js"></script>
 <script src="app.js"></script>
 <script src="rankings.js"></script>
+<script src="orphan-draft.js"></script>
 </body>
 </html>

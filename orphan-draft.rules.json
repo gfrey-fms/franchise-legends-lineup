@@ -1,0 +1,10 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "orphanDrafts": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
